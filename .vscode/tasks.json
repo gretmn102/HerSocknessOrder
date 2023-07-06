@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "dev",
+      "problemMatcher": [],
+      "label": "npm: dev",
+      "detail": "concurrently \"npm:*:watch\""
+    },
+    {
+      "type": "npm",
+      "script": "deploy",
+      "problemMatcher": [],
+      "label": "npm: deploy",
+      "detail": "npm run fable:build && npm run vite:build"
+    },
+    {
+      "type": "npm",
+      "script": "vite:build",
+      "group": "build",
+      "problemMatcher": [],
+      "label": "npm: vite:build",
+      "detail": "vite build"
+    }
+  ]
+}
