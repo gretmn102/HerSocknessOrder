@@ -10,6 +10,7 @@ open IfEngine
 type LabelName =
     | MainMenu
     | Prelude
+    | MainSockdomStreet
     | Еpilogue
 
 type CustomStatementArg = unit
@@ -38,34 +39,53 @@ let scenario, vars =
                         style.display.flex
                     ]
 
-                    prop.text "Название игры" // TODO
+                    prop.text "Поручение Ее Носочества"
                 ]
-                Html.div [ Html.text "Описание" ] // TODO
+                Html.div [
+                    Html.text "Однажды Ее Носочество Surprise велит верноподданному Агенту собрать всех жителей Носочного царства в главном зале, чтобы объявить важную государственную весть. Тот принимается всех собирать, однако жители не шибко спешат выполнять указание даже именем Ее Носочества и находят тысячу и одну причину, чтобы не идти. Сможет ли Агент всех собрать? Это и предстоит выяснить в этом коротеньком интерактивном рассказе "
+                    Html.img [
+                        prop.src "https://cdn.discordapp.com/emojis/927633357737713704.webp?size=22&quality=lossless"
+                    ]
+                ]
                 Html.div [
                     prop.style [
                         style.justifyContent.flexEnd
                         style.display.flex
                     ]
-                    prop.text "v1.00"
+                    prop.text "v0.1.0"
                 ]
             ] [
                 choice "Начать" [ jump Prelude ]
                 choice "Авторов!" [
                     menu [
-                        Html.text "Автор" // TODO
+                        Html.text "Все понемногу. И вообще, заходите на наш "
+                        Html.a [
+                            prop.href "https://discord.gg/YcN2AET65d"
+                            prop.target "_blank"
+                            prop.children [
+                                Html.text "Discord сервер \"Веселый носок\""
+                            ]
+                        ]
+                        Html.text ", у нас весело!"
                     ] [
                         choice "Назад" [ jump MainMenu ]
                     ]
                 ]
             ]
         ]
+
         label Prelude [
-            // TODO
+            say "TODO: здесь раскрывается логлайн, в котором Ее Носочество дает задание Агенту."
+            jump MainSockdomStreet
+        ]
+
+        label MainSockdomStreet [
+            say "TODO: Агент выходит из замка на главную площадь Носочного царства со множеством разветлений. Ему предстоит посетить множество мест и встретиться с жителями Носочного царства, которых придется уговорить, чтобы выполнить поручение."
             jump Еpilogue
         ]
 
         label Еpilogue [
-            // TODO
+            say "TODO: Агент собрал всех в носочном зале, и Ее Носочество объявляет важную весть."
         ]
     ]
     |> fun scenario ->
