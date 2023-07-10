@@ -77,6 +77,17 @@ module Helpers =
             thenBodies
             elseBody
 
+    let sayWithImg (text: string) imgSrc =
+        Say [
+            Html.p [
+                prop.text text
+            ]
+
+            Html.img [
+                prop.src imgSrc
+            ]
+        ]
+
 type CustomStatementArg = unit
 type CustomStatement = unit
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -202,7 +213,25 @@ let scenario, vars =
             yield! Helpers.switch
                 [
                     (TemporaryGatekeeper.is' TemporaryGatekeeper.HasNotStartedYet), [
-                        say "TODO: Начался квест \"Временный страж!\""
+                        say "Агент подходит к вратам — к единственному месту, через которое можно попасть внутрь Носочного королевства и выйти из оного."
+
+                        Helpers.sayWithImg
+                            "На страже у ворот стоит Enurezo."
+                            "https://cdn.discordapp.com/emojis/952317602594693171.webp?size=240&quality=lossless"
+
+                        say "— Привет, Enu... — не успевает начать Агент, как во врата уже кто-то ломится."
+                        say "— Есть кто дома?! — орут с той стороны."
+                        say "— Ты вовремя, Агент. — невозмутимо говорит Enurezo и кричит в ответ: — 18 есть?!"
+
+                        Helpers.sayWithImg
+                            "С той стороны льется негодование, ругань и отборная адекватность."
+                            "https://trello.com/1/cards/62da598f6a88c50b13a91d6b/attachments/62fd2abe66de6e3368657746/download/%D0%B8%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5.png"
+
+                        say "— Там это, Ее Носочество... — переходит Агент к делу, но Enurezo уже опрашивает следующего новичка и совершенно не обращает на него внимания."
+
+                        say "\"Вот бы состряпать временного стража для врат, чтобы заменить как-то Enurezo\", — напряженно думает Агент."
+
+                        say "*Начался квест \"Временный страж!\"*"
                         ChangeVars (TemporaryGatekeeper.set TemporaryGatekeeper.Started)
 
                         menu [
