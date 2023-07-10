@@ -7,11 +7,75 @@ open IfEngine.Fable.Utils
 open IfEngine.Interpreter
 open IfEngine
 
+[<RequireQualifiedAccess>]
 type LabelName =
     | MainMenu
     | Prelude
     | MainSockdomStreet
+    | ThroneRoom
+    | Gates
+    | NoodleFactory
     | Еpilogue
+
+// TODO: refact: move VarsContainer to IfEngine
+type VarsContainer = Map<string, Var>
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+[<RequireQualifiedAccess>]
+module VarsContainer =
+    let createNum varName initValue (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Num initValue) vars
+
+    let getNum varName (vars: VarsContainer) =
+        match vars.[varName] with
+        | Num x -> x
+        | _ -> failwithf "expected Num _ but %s" varName
+
+    let setNum varName value (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Num value) vars
+
+    let inline createEnum varName (initValue: ^T when ^T : enum<int32>) (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Num (int32 initValue)) vars
+
+    let inline getEnum varName (vars: VarsContainer) : ^T when ^T : enum<int32> =
+        match vars.[varName] with
+        | Num x -> (enum x): ^T
+        | _ -> failwithf "expected Num _ but %s" varName
+
+    let inline setEnum varName (value: ^T when ^T : enum<int32>) (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Num (int32 value)) vars
+
+    let createString varName initValue (vars: VarsContainer) : VarsContainer =
+        Map.add varName (String initValue) vars
+
+    let getString varName (vars: VarsContainer) =
+        match vars.[varName] with
+        | String x -> x
+        | _ -> failwithf "expected String _ but %s" varName
+
+    let setString varName value (vars: VarsContainer) : VarsContainer =
+        Map.add varName (String value) vars
+
+    let createBool varName initValue (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Bool initValue) vars
+
+    let getBool varName (vars: VarsContainer) =
+        match vars.[varName] with
+        | Bool x -> x
+        | _ -> failwithf "expected Bool _ but %s" varName
+
+    let setBool varName value (vars: VarsContainer) : VarsContainer =
+        Map.add varName (Bool value) vars
+
+// TODO: refact: move Helpers to IFEngine
+module Helpers =
+    let switch (thenBodies: ((VarsContainer -> bool) * Block<'a,'b,'c>) list) (elseBody: Block<'a,'b,'c>) : Block<'a, 'b, 'c> =
+        List.foldBack
+            (fun ((pred: VarsContainer -> bool), (thenBody: Block<'a,'b,'c>)) elseBody ->
+                [If(pred, thenBody, elseBody)]
+            )
+            thenBodies
+            elseBody
 
 type CustomStatementArg = unit
 type CustomStatement = unit
@@ -24,14 +88,51 @@ module CustomStatement =
     let handle subIndex customStatement =
         failwithf "not implemented yet"
 
-let beginLoc = MainMenu
+let beginLoc = LabelName.MainMenu
+
+module GlobalVars =
+    [<RequireQualifiedAccess>]
+    module NoodlesCount =
+        let name = "noodlesCount"
+        let get vars = VarsContainer.getNum name vars
+        let set count vars = VarsContainer.setNum name count vars
+
+    type NoodlesEverywhere =
+        | HasNotStartedYet = 0
+        | Started = 1
+        | Finished = 2
+
+    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+    [<RequireQualifiedAccess>]
+    module NoodlesEverywhere =
+        let name = "noodlesEverywhere"
+        let get vars = VarsContainer.getEnum name vars
+        let set (value: NoodlesEverywhere) vars = VarsContainer.setEnum name value vars
+        let is' (value: NoodlesEverywhere) vars = get vars = value
+
+    type TemporaryGatekeeper =
+        | HasNotStartedYet = 0
+        | Started = 1
+        | Finished = 2
+
+    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+    [<RequireQualifiedAccess>]
+    module TemporaryGatekeeper =
+        let name = "temporaryGatekeeper"
+        let get vars = VarsContainer.getEnum name vars
+        let set (value: TemporaryGatekeeper) vars = VarsContainer.setEnum name value vars
+        let is' (value: TemporaryGatekeeper) vars = get vars = value
+
+open GlobalVars
 
 let scenario, vars =
     let vars = Map.empty
-    let getCounter, updateCounter, vars = createNumVar "counter" 0 vars
+    let vars = VarsContainer.createEnum NoodlesEverywhere.name NoodlesEverywhere.HasNotStartedYet vars
+    let vars = VarsContainer.createNum NoodlesCount.name 0 vars
+    let vars = VarsContainer.createEnum TemporaryGatekeeper.name TemporaryGatekeeper.HasNotStartedYet vars
 
     [
-        label MainMenu [
+        label LabelName.MainMenu [
             menu [
                 Html.h1 [
                     prop.style [
@@ -55,7 +156,7 @@ let scenario, vars =
                     prop.text "v0.1.0"
                 ]
             ] [
-                choice "Начать" [ jump Prelude ]
+                choice "Начать" [ jump LabelName.Prelude ]
                 choice "Авторов!" [
                     menu [
                         Html.text "Все понемногу. И вообще, заходите на наш "
@@ -68,23 +169,186 @@ let scenario, vars =
                         ]
                         Html.text ", у нас весело!"
                     ] [
-                        choice "Назад" [ jump MainMenu ]
+                        choice "Назад" [ jump LabelName.MainMenu ]
                     ]
                 ]
             ]
         ]
 
-        label Prelude [
+        label LabelName.Prelude [
             say "TODO: здесь раскрывается логлайн, в котором Ее Носочество дает задание Агенту."
-            jump MainSockdomStreet
+            jump LabelName.MainSockdomStreet
         ]
 
-        label MainSockdomStreet [
-            say "TODO: Агент выходит из замка на главную площадь Носочного царства со множеством разветлений. Ему предстоит посетить множество мест и встретиться с жителями Носочного царства, которых придется уговорить, чтобы выполнить поручение."
-            jump Еpilogue
+        label LabelName.MainSockdomStreet [
+            menu [
+                Html.text "TODO: Агент выходит из замка на главную площадь Носочного царства со множеством разветлений. Ему предстоит посетить множество мест и встретиться с жителями Носочного царства, которых придется уговорить, чтобы выполнить поручение."
+            ] [
+                "Завод по производству лапшички", [
+                    jump LabelName.NoodleFactory
+                ]
+
+                "Главные врата", [
+                    jump LabelName.Gates
+                ]
+
+                "Тронный зал", [
+                    jump LabelName.ThroneRoom
+                ]
+            ]
         ]
 
-        label Еpilogue [
+        label LabelName.Gates [
+            yield! Helpers.switch
+                [
+                    (TemporaryGatekeeper.is' TemporaryGatekeeper.HasNotStartedYet), [
+                        say "TODO: Начался квест \"Временный страж!\""
+                        ChangeVars (TemporaryGatekeeper.set TemporaryGatekeeper.Started)
+
+                        menu [
+                        ] [
+                            "Вернуться на главную площадь", [
+                                jump LabelName.MainSockdomStreet
+                            ]
+                        ]
+                    ]
+
+                    (TemporaryGatekeeper.is' TemporaryGatekeeper.Started), [
+                        if' (fun vars -> NoodlesCount.get vars > 0) [
+                            menu [
+                                Html.text "Enurezo неустанно стоит на страже врат и, похоже, не обращает никакого внимания на Агента. Вот бы состряпать временного стража для врат."
+                            ] [
+                                "Гора «Лапшевесников»", [
+                                    say "\"А ведь из «Лапшевесников» можно состряпать, скажем, дракона, который будет временно отпугивать посетителей. Чем не страж?\", — подумал Агент."
+
+                                    menu [
+                                        Html.text "Сделать дракона?"
+                                    ] [
+                                        "Ага!", [
+                                            say "Агент собирает дракона из «Лапшевесников», а Enuroze придирчиво смотрит на это действо и бубнит."
+                                            say "Пару штрихов, и дракон готов."
+                                            ChangeVars (NoodlesCount.set 0)
+
+                                            says [
+                                                "— Вот наш временный страж! — довольно произносит Агент."
+                                                "— Что-то я не дове... — не успевает договорить Enurezo, как вдруг дракон начинает орать: — Стой, кто идет?!"
+                                                "И как раз вовремя, потому что на подходе у врат объявился новенький."
+                                                "— А это так надо, что новичок сразу убежал? — спросил Enurezo."
+                                                "— Да-да, всё по последнему слову техники. Пошли в тронный зал."
+                                                "Enurezo нехотя соглашается."
+                                            ]
+
+                                            ChangeVars (TemporaryGatekeeper.set TemporaryGatekeeper.Finished)
+
+                                            jump LabelName.Gates
+                                        ]
+
+                                        "Ой, не", [
+                                            say "Ну, и правильно."
+                                            jump LabelName.Gates
+                                        ]
+                                    ]
+                                ]
+
+                                "Втюхать Enurezo «Лапшевесник»", [
+                                    say "— Спасибо, я не голоден, — отказался Enurezo."
+                                    jump LabelName.Gates
+                                ]
+
+                                "Вернуться на главную площадь", [
+                                    jump LabelName.MainSockdomStreet
+                                ]
+                            ]
+                        ] [
+                            menu [
+                                Html.text "Enurezo неустанно стоит на страже врат и, похоже, не обращает никакого внимания на Агента. Вот бы состряпать временного стража для врат."
+                            ] [
+                                "Вернуться на главную площадь", [
+                                    jump LabelName.MainSockdomStreet
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+                [
+                    menu [
+                        Html.text "На вратах тихо и пусто."
+                    ] [
+                        "Вернуться на главную площадь", [
+                            jump LabelName.MainSockdomStreet
+                        ]
+                    ]
+                ]
+        ]
+
+        label LabelName.NoodleFactory [
+            yield! Helpers.switch
+                [
+                    (NoodlesEverywhere.is' NoodlesEverywhere.HasNotStartedYet), [
+                        say "TODO: Начался квест \"Лапшичка повсюду!\""
+                        ChangeVars (NoodlesEverywhere.set NoodlesEverywhere.Started)
+                        ChangeVars (NoodlesCount.set 1000)
+                        menu [
+                        ] [
+                            "На главную площадь", [
+                                jump LabelName.MainSockdomStreet
+                            ]
+                        ]
+                    ]
+
+                    (NoodlesEverywhere.is' NoodlesEverywhere.Started), [
+                        if' (fun vars -> NoodlesCount.get vars > 0) [
+                            say "— Ну что, раздал «Лапшевесники»? — спрашивает СПб, будто не видит, как лапшичка отягощает ушки Агента, плечи и всё, что только можно отягощать."
+                            say "— Нет, — бурчит Агент."
+                            say "— Тогда нас ждет еще много дел! — восклицает СПб и несется к Адалинде, чтобы узнать ее мнение о качестве выпускаемой лапшички."
+                            menu [
+                            ] [
+                                "На главную площадь", [
+                                    jump LabelName.MainSockdomStreet
+                                ]
+                            ]
+                        ] [
+                            say "— Все «Лапшевесники» розданы! — отчитывается Агент."
+                            say "— Прекрасная работа, — говорит СПб. — Что ж, пожалуй, можно отправиться к Surprise. Кошка, бросай лапшичку, мы отправляемся в путь!"
+                            ChangeVars (NoodlesEverywhere.set NoodlesEverywhere.Finished)
+                            menu [
+                            ] [
+                                "На главную площадь", [
+                                    jump LabelName.MainSockdomStreet
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+                [
+                    menu [
+                        Html.text "На заводе тихо и пусто, лишь старый «Лапшевесник» пошелестывает на ветру."
+                    ] [
+                        "На главную площадь", [
+                            jump LabelName.MainSockdomStreet
+                        ]
+                    ]
+                ]
+        ]
+
+        label LabelName.ThroneRoom [
+            if' (fun vars ->
+                NoodlesEverywhere.is' NoodlesEverywhere.Finished vars
+                && TemporaryGatekeeper.is' TemporaryGatekeeper.Finished vars
+            ) [
+                jump LabelName.Еpilogue
+            ] [
+                menu [
+                    Html.text "Похоже, не все еще собрались. Нужно поднапрячься."
+                ] [
+                    "На главную площадь", [
+                        jump LabelName.MainSockdomStreet
+                    ]
+                ]
+            ]
+        ]
+
+        label LabelName.Еpilogue [
             say "TODO: Агент собрал всех в носочном зале, и Ее Носочество объявляет важную весть."
         ]
     ]
