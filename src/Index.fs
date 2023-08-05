@@ -1,27 +1,36 @@
 module Index
 open Elmish
-open IfEngine.Fable.Utils
+open FsharpMyExtension.ResultExt
+open Scenario.IfEngine.Types
+open IfEngine.Engine
+open IfEngine.Fable
+open IfEngine.Fable.WebEngine
 
 type State =
     {
-        IfEngineState: IfEngine.Game.State<Text, Scenario.LabelName, Scenario.CustomStatement, Scenario.CustomStatementArg>
+        IfEngineState: WebEngine<Scenario.LabelName, Scenario.CustomStatement, Scenario.CustomStatementArg, Scenario.CustomStatementOutput>
     }
 
 type Msg =
-    | IfEngineMsg of IfEngine.Game.Msg<Scenario.CustomStatement, Scenario.CustomStatementArg>
+    | IfEngineMsg of InputMsg<Scenario.CustomStatementOutput>
 
 let init () =
     let st =
         {
             IfEngineState =
-                Scenario.gameState
+                WebEngine.create
+                    CustomStatementHandler.empty
+                    Scenario.scenario
+                    (IfEngine.State.init Scenario.beginLoc VarsContainer.empty)
+                |> Result.get
         }
     st, Cmd.none
 
 let update (msg: Msg) (state: State) =
     let updateGame msg =
         let gameState =
-            Scenario.update msg state.IfEngineState
+            WebEngine.update msg state.IfEngineState
+            |> Result.get
 
         { state with
             IfEngineState = gameState
@@ -32,9 +41,9 @@ let update (msg: Msg) (state: State) =
         updateGame msg, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit) =
-    IfEngine.Fable.Index.view
-        (fun (customStatement: Scenario.CustomStatement) state' dispatch' ->
-            failwithf "addon not implemented"
+    Index.view
+        (fun (customStatement: Scenario.CustomStatement) ->
+            failwithf "customStatement not implemented"
         )
         state.IfEngineState
         (IfEngineMsg >> dispatch)

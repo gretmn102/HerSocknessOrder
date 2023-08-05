@@ -1,11 +1,11 @@
 module Scenario
 open Feliz
 
+open IfEngine
 open IfEngine.Utils
 open IfEngine.Types
 open IfEngine.Fable.Utils
-open IfEngine.Interpreter
-open IfEngine
+open IfEngine.Fable.WebEngine
 
 [<RequireQualifiedAccess>]
 type LabelName =
@@ -134,6 +134,8 @@ module IfEngine =
         [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
         [<RequireQualifiedAccess>]
         module VarsContainer =
+            let empty: VarsContainer = Map.empty
+
             let createNum varName = new NumVar(varName)
 
             let createEnum varName = new EnumVar<'T>(varName)
@@ -178,14 +180,7 @@ open IFEngine.Fable.Utils
 
 type CustomStatementArg = unit
 type CustomStatement = unit
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-[<RequireQualifiedAccess>]
-module CustomStatement =
-    let apply state stack (arg: CustomStatementArg) customStatement =
-        failwithf "not implemented yet"
-
-    let handle subIndex customStatement =
-        failwithf "not implemented yet"
+type CustomStatementOutput = unit
 
 let beginLoc = LabelName.MainMenu
 
@@ -462,39 +457,6 @@ let scenario =
             say "TODO: Агент собрал всех в носочном зале, и Ее Носочество объявляет важную весть."
         ]
     ]
-
-let gameState, update =
-    let scenario =
-        scenario
-        |> List.map (fun (labelName, body) -> labelName, (labelName, body))
-        |> Map.ofList
-        : Scenario<_, _, _>
-
-    let init: State<Text, LabelName, CustomStatement> =
-        {
-            LabelState =
-                LabelState.create
-                    beginLoc
-                    (Stack.createSimpleStatement 0)
-            Vars = Map.empty
-        }
-
-    let interp gameState =
-        gameState
-        |> interp (CustomStatement.apply, CustomStatement.handle) scenario
-        |> function
-            | Ok x -> x
-            | Error err ->
-                failwithf "%s" err
-
-    let gameState =
-        {
-            Game.Game = interp init
-            Game.GameState = init
-            Game.SavedGameState = init
-        }
-
-    let update msg state =
-        Game.update interp init msg state
-
-    gameState, update
+    |> List.map (fun (labelName, body) -> labelName, (labelName, body))
+    |> Map.ofList
+    : Scenario<Text, LabelName, CustomStatement>
