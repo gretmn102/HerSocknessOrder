@@ -17,76 +17,164 @@ type LabelName =
     | NoodleFactory
     | Еpilogue
 
-// TODO: refact: move VarsContainer to IfEngine
-type VarsContainer = Map<string, Var>
+// TODO: refact: move to IfEngine
+module IfEngine =
+    module Types =
+        type VarsContainer = Map<string, Var>
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-[<RequireQualifiedAccess>]
-module VarsContainer =
-    let createNum varName initValue (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Num initValue) vars
+        type IVar<'Value> =
+            abstract Get: VarsContainer -> 'Value
+            abstract Set: 'Value -> VarsContainer -> VarsContainer
+            abstract Update: ('Value -> 'Value) -> VarsContainer -> VarsContainer
+            abstract GetVarName: unit -> string
 
-    let getNum varName (vars: VarsContainer) =
-        match vars.[varName] with
-        | Num x -> x
-        | _ -> failwithf "expected Num _ but %s" varName
+        [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+        [<RequireQualifiedAccess>]
+        module Var =
+            let get (var: #IVar<'Value>) varContainer =
+                var.Get varContainer
 
-    let setNum varName value (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Num value) vars
+            let set (var: #IVar<'Value>) newValue varContainer =
+                var.Set newValue varContainer
 
-    let inline createEnum varName (initValue: ^T when ^T : enum<int32>) (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Num (int32 initValue)) vars
+            let update (var: #IVar<'Value>) mapping varContainer =
+                var.Update mapping varContainer
 
-    let inline getEnum varName (vars: VarsContainer) : ^T when ^T : enum<int32> =
-        match vars.[varName] with
-        | Num x -> (enum x): ^T
-        | _ -> failwithf "expected Num _ but %s" varName
+            let equals (var: #IVar<'Value>) otherValue varContainer =
+                (get var varContainer) = otherValue
 
-    let inline setEnum varName (value: ^T when ^T : enum<int32>) (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Num (int32 value)) vars
+            let getVarName (var: #IVar<'Value>) =
+                var.GetVarName()
 
-    let createString varName initValue (vars: VarsContainer) : VarsContainer =
-        Map.add varName (String initValue) vars
+        type NumVar(varName: string) =
+            interface IVar<int> with
+                member __.GetVarName () =
+                    varName
 
-    let getString varName (vars: VarsContainer) =
-        match vars.[varName] with
-        | String x -> x
-        | _ -> failwithf "expected String _ but %s" varName
+                member __.Get varContainer =
+                    match Map.tryFind varName varContainer with
+                    | Some(Var.Num x) -> x
+                    | _ ->
+                        printfn "expected Some(Num x) but %s" varName
+                        0
 
-    let setString varName value (vars: VarsContainer) : VarsContainer =
-        Map.add varName (String value) vars
+                member __.Set newValue varContainer =
+                    Map.add varName (Var.Num newValue) varContainer
 
-    let createBool varName initValue (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Bool initValue) vars
+                member this.Update mapping varContainer =
+                    Var.set
+                        this
+                        (mapping (Var.get this varContainer))
+                        varContainer
 
-    let getBool varName (vars: VarsContainer) =
-        match vars.[varName] with
-        | Bool x -> x
-        | _ -> failwithf "expected Bool _ but %s" varName
+        type StringVar(varName: string) =
+            interface IVar<string> with
+                member __.GetVarName () =
+                    varName
 
-    let setBool varName value (vars: VarsContainer) : VarsContainer =
-        Map.add varName (Bool value) vars
+                member __.Get varContainer =
+                    match Map.tryFind varName varContainer with
+                    | Some(Var.String x) -> x
+                    | _ ->
+                        printfn "expected Some(String x) but %s" varName
+                        ""
 
-// TODO: refact: move Helpers to IFEngine
-module Helpers =
-    let switch (thenBodies: ((VarsContainer -> bool) * Block<'a,'b,'c>) list) (elseBody: Block<'a,'b,'c>) : Block<'a, 'b, 'c> =
-        List.foldBack
-            (fun ((pred: VarsContainer -> bool), (thenBody: Block<'a,'b,'c>)) elseBody ->
-                [If(pred, thenBody, elseBody)]
-            )
-            thenBodies
-            elseBody
+                member __.Set newValue varContainer =
+                    Map.add varName (Var.String newValue) varContainer
 
-    let sayWithImg (text: string) imgSrc =
-        Say [
-            Html.p [
-                prop.text text
-            ]
+                member this.Update mapping varContainer =
+                    Var.set
+                        this
+                        (mapping (Var.get this varContainer))
+                        varContainer
 
-            Html.img [
-                prop.src imgSrc
-            ]
-        ]
+        type BoolVar(varName: string) =
+            interface IVar<bool> with
+                member __.GetVarName () =
+                    varName
+
+                member __.Get varContainer =
+                    match Map.tryFind varName varContainer with
+                    | Some(Var.Bool x) -> x
+                    | _ ->
+                        printfn "expected Some(Bool x) but %s" varName
+                        false
+
+                member __.Set newValue varContainer =
+                    Map.add varName (Var.Bool newValue) varContainer
+
+                member this.Update mapping varContainer =
+                    Var.set
+                        this
+                        (mapping (Var.get this varContainer))
+                        varContainer
+
+        type EnumVar<'T when 'T: enum<int>>(varName: string)  =
+            interface IVar<'T> with
+                member __.GetVarName() =
+                    varName
+
+                member __.Get varContainer =
+                    match Map.tryFind varName varContainer with
+                    | Some(Var.Num x) -> (enum x): 'T
+                    | _ ->
+                        printfn "expected Some(Bool x) but %s" varName
+                        enum 0
+
+                member __.Set (newValue) varContainer =
+                    let newValue = int (unbox newValue)
+                    Map.add varName (Var.Num newValue) varContainer
+
+                member this.Update mapping varContainer =
+                    Var.set
+                        this
+                        (mapping (Var.get this varContainer))
+                        varContainer
+
+        [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+        [<RequireQualifiedAccess>]
+        module VarsContainer =
+            let createNum varName = new NumVar(varName)
+
+            let createEnum varName = new EnumVar<'T>(varName)
+
+            let createString varName = new StringVar(varName)
+
+    module Utils =
+        open Types
+
+        let switch (thenBodies: ((VarsContainer -> bool) * Block<'a,'b,'c>) list) (elseBody: Block<'a,'b,'c>) : Block<'a, 'b, 'c> =
+            List.foldBack
+                (fun ((pred: VarsContainer -> bool), (thenBody: Block<'a,'b,'c>)) elseBody ->
+                    [If(pred, thenBody, elseBody)]
+                )
+                thenBodies
+                elseBody
+
+        let (:=) (var: #IVar<_>) newValue =
+            ChangeVars (Var.set var newValue)
+
+        let (==) (var: #IVar<_>) newValue varsContainer =
+            Var.equals var newValue varsContainer
+
+// TODO: refact: move to IfEngine.Fable
+module IFEngine =
+    module Fable =
+        module Utils =
+            let sayImg (text: string) imgSrc =
+                Say [
+                    Html.p [
+                        prop.text text
+                    ]
+
+                    Html.img [
+                        prop.src imgSrc
+                    ]
+                ]
+
+open IfEngine.Types
+open IfEngine.Utils
+open IFEngine.Fable.Utils
 
 type CustomStatementArg = unit
 type CustomStatement = unit
@@ -102,46 +190,25 @@ module CustomStatement =
 let beginLoc = LabelName.MainMenu
 
 module GlobalVars =
-    [<RequireQualifiedAccess>]
-    module NoodlesCount =
-        let name = "noodlesCount"
-        let get vars = VarsContainer.getNum name vars
-        let set count vars = VarsContainer.setNum name count vars
+    let noodleCount = VarsContainer.createNum "noodleCount"
 
     type NoodlesEverywhere =
         | HasNotStartedYet = 0
         | Started = 1
         | Finished = 2
 
-    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-    [<RequireQualifiedAccess>]
-    module NoodlesEverywhere =
-        let name = "noodlesEverywhere"
-        let get vars = VarsContainer.getEnum name vars
-        let set (value: NoodlesEverywhere) vars = VarsContainer.setEnum name value vars
-        let is' (value: NoodlesEverywhere) vars = get vars = value
+    let noodlesEverywhere = VarsContainer.createEnum "noodlesEverywhere"
 
     type TemporaryGatekeeper =
         | HasNotStartedYet = 0
         | Started = 1
         | Finished = 2
 
-    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-    [<RequireQualifiedAccess>]
-    module TemporaryGatekeeper =
-        let name = "temporaryGatekeeper"
-        let get vars = VarsContainer.getEnum name vars
-        let set (value: TemporaryGatekeeper) vars = VarsContainer.setEnum name value vars
-        let is' (value: TemporaryGatekeeper) vars = get vars = value
+    let temporaryGatekeeper = VarsContainer.createEnum "temporaryGatekeeper"
 
 open GlobalVars
 
-let scenario, vars =
-    let vars = Map.empty
-    let vars = VarsContainer.createEnum NoodlesEverywhere.name NoodlesEverywhere.HasNotStartedYet vars
-    let vars = VarsContainer.createNum NoodlesCount.name 0 vars
-    let vars = VarsContainer.createEnum TemporaryGatekeeper.name TemporaryGatekeeper.HasNotStartedYet vars
-
+let scenario =
     [
         label LabelName.MainMenu [
             menu [
@@ -210,12 +277,12 @@ let scenario, vars =
         ]
 
         label LabelName.Gates [
-            yield! Helpers.switch
+            yield! switch
                 [
-                    (TemporaryGatekeeper.is' TemporaryGatekeeper.HasNotStartedYet), [
+                    (temporaryGatekeeper == TemporaryGatekeeper.HasNotStartedYet), [
                         say "Агент подходит к вратам — к единственному месту, через которое можно попасть внутрь Носочного королевства и выйти из оного."
 
-                        Helpers.sayWithImg
+                        sayImg
                             "На страже у ворот стоит Enurezo."
                             "https://cdn.discordapp.com/emojis/952317602594693171.webp?size=240&quality=lossless"
 
@@ -223,7 +290,7 @@ let scenario, vars =
                         say "— Есть кто дома?! — орут с той стороны."
                         say "— Ты вовремя, Агент. — невозмутимо говорит Enurezo и кричит в ответ: — 18 есть?!"
 
-                        Helpers.sayWithImg
+                        sayImg
                             "С той стороны льется негодование, ругань и отборная адекватность."
                             "https://trello.com/1/cards/62da598f6a88c50b13a91d6b/attachments/62fd2abe66de6e3368657746/download/%D0%B8%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5.png"
 
@@ -232,7 +299,7 @@ let scenario, vars =
                         say "\"Вот бы состряпать временного стража для врат, чтобы заменить как-то Enurezo\", — напряженно думает Агент."
 
                         say "*Начался квест \"Временный страж!\"*"
-                        ChangeVars (TemporaryGatekeeper.set TemporaryGatekeeper.Started)
+                        temporaryGatekeeper := TemporaryGatekeeper.Started
 
                         menu [
                         ] [
@@ -242,8 +309,8 @@ let scenario, vars =
                         ]
                     ]
 
-                    (TemporaryGatekeeper.is' TemporaryGatekeeper.Started), [
-                        if' (fun vars -> NoodlesCount.get vars > 0) [
+                    (temporaryGatekeeper == TemporaryGatekeeper.Started), [
+                        if' (fun vars -> Var.get noodleCount vars > 0) [
                             menu [
                                 Html.text "Enurezo неустанно стоит на страже врат и, похоже, не обращает никакого внимания на Агента. Вот бы состряпать временного стража для врат."
                             ] [
@@ -256,7 +323,7 @@ let scenario, vars =
                                         "Ага!", [
                                             say "Агент собирает дракона из «Лапшевесников», а Enuroze придирчиво смотрит на это действо и бубнит."
                                             say "Пару штрихов, и дракон готов."
-                                            ChangeVars (NoodlesCount.set 0)
+                                            noodleCount := 0
 
                                             says [
                                                 "— Вот наш временный страж! — довольно произносит Агент."
@@ -267,7 +334,7 @@ let scenario, vars =
                                                 "Enurezo нехотя соглашается."
                                             ]
 
-                                            ChangeVars (TemporaryGatekeeper.set TemporaryGatekeeper.Finished)
+                                            temporaryGatekeeper := TemporaryGatekeeper.Finished
 
                                             jump LabelName.Gates
                                         ]
@@ -311,14 +378,14 @@ let scenario, vars =
         ]
 
         label LabelName.NoodleFactory [
-            yield! Helpers.switch
+            yield! switch
                 [
-                    (NoodlesEverywhere.is' NoodlesEverywhere.HasNotStartedYet), [
+                    (noodlesEverywhere == NoodlesEverywhere.HasNotStartedYet), [
                         say "Агент подходит к лапшичному заводу, к месту, где лапшичка становится явью."
 
                         // say "Сложно сказать, что именно там изготовляют, но известно точно, что любого, кто имеет неосторожность сюда показать свои ушки, начинает тяготить от лапшички."
 
-                        Helpers.sayWithImg
+                        sayImg
                             "— Опа, Агент! — воскликает Шедоу с особым предвкушением. Он бросает лапшевесную машину и несется к Агенту. Хорошо отлаженная машина без устали штампует свежий выпуск «Лапшевесника», от одного вида которой уже начинает тяготить ушки."
                             "https://magma.com/shared/XhuBNd8uyGMH-EWvEDNoQg"
 
@@ -329,8 +396,8 @@ let scenario, vars =
                         say "— Ты знал, что "
 
                         say "*Начинается квест \"Лапшичка, лапшичка повсюду!\"*"
-                        ChangeVars (NoodlesEverywhere.set NoodlesEverywhere.Started)
-                        ChangeVars (NoodlesCount.set 1000)
+                        noodlesEverywhere := NoodlesEverywhere.Started
+                        noodleCount := 1000
                         menu [
                         ] [
                             "На главную площадь", [
@@ -339,8 +406,8 @@ let scenario, vars =
                         ]
                     ]
 
-                    (NoodlesEverywhere.is' NoodlesEverywhere.Started), [
-                        if' (fun vars -> NoodlesCount.get vars > 0) [
+                    (noodlesEverywhere == NoodlesEverywhere.Started), [
+                        if' (fun vars -> Var.get noodleCount vars > 0) [
                             say "— Ну что, раздал «Лапшевесники»? — спрашивает СПб, будто не видит, как лапшичка отягощает ушки Агента, плечи и всё, что только можно отягощать."
                             say "— Нет, — бурчит Агент."
                             say "— Тогда нас ждет еще много дел! — восклицает СПб и несется к Адалинде, чтобы узнать ее мнение о качестве выпускаемой лапшички."
@@ -353,7 +420,7 @@ let scenario, vars =
                         ] [
                             say "— Все «Лапшевесники» розданы! — отчитывается Агент."
                             say "— Прекрасная работа, — говорит СПб. — Что ж, пожалуй, можно отправиться к Surprise. Кошка, бросай лапшичку, мы отправляемся в путь!"
-                            ChangeVars (NoodlesEverywhere.set NoodlesEverywhere.Finished)
+                            noodlesEverywhere := NoodlesEverywhere.Finished
                             menu [
                             ] [
                                 "На главную площадь", [
@@ -376,8 +443,8 @@ let scenario, vars =
 
         label LabelName.ThroneRoom [
             if' (fun vars ->
-                NoodlesEverywhere.is' NoodlesEverywhere.Finished vars
-                && TemporaryGatekeeper.is' TemporaryGatekeeper.Finished vars
+                Var.equals noodlesEverywhere NoodlesEverywhere.Finished vars
+                && Var.equals temporaryGatekeeper TemporaryGatekeeper.Finished vars
             ) [
                 jump LabelName.Еpilogue
             ] [
@@ -395,8 +462,6 @@ let scenario, vars =
             say "TODO: Агент собрал всех в носочном зале, и Ее Носочество объявляет важную весть."
         ]
     ]
-    |> fun scenario ->
-        scenario, vars
 
 let gameState, update =
     let scenario =
@@ -411,7 +476,7 @@ let gameState, update =
                 LabelState.create
                     beginLoc
                     (Stack.createSimpleStatement 0)
-            Vars = vars
+            Vars = Map.empty
         }
 
     let interp gameState =
