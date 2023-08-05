@@ -3,6 +3,7 @@
   "scripts": {
     "dotnet:install": "dotnet tool restore && dotnet paket install",
     "dotnet:clean": "dotnet clean",
+    "dotnet:deploy": "npm run dotnet:install && npm run dotnet:clean && dotnet build",
     "postinstall": "npm run dotnet:install",
     "fable:build": "dotnet fable src/HerSocknessOrder.fsproj -o dist",
     "fable:watch": "npm run fable:build -- --watch",
