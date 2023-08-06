@@ -17,148 +17,6 @@ type LabelName =
     | NoodleFactory
     | Еpilogue
 
-// TODO: refact: move to IfEngine
-module IfEngine =
-    module Types =
-        type VarsContainer = Map<string, Var>
-
-        type IVar<'Value> =
-            abstract Get: VarsContainer -> 'Value
-            abstract Set: 'Value -> VarsContainer -> VarsContainer
-            abstract Update: ('Value -> 'Value) -> VarsContainer -> VarsContainer
-            abstract GetVarName: unit -> string
-
-        [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-        [<RequireQualifiedAccess>]
-        module Var =
-            let get (var: #IVar<'Value>) varContainer =
-                var.Get varContainer
-
-            let set (var: #IVar<'Value>) newValue varContainer =
-                var.Set newValue varContainer
-
-            let update (var: #IVar<'Value>) mapping varContainer =
-                var.Update mapping varContainer
-
-            let equals (var: #IVar<'Value>) otherValue varContainer =
-                (get var varContainer) = otherValue
-
-            let getVarName (var: #IVar<'Value>) =
-                var.GetVarName()
-
-        type NumVar(varName: string) =
-            interface IVar<int> with
-                member __.GetVarName () =
-                    varName
-
-                member __.Get varContainer =
-                    match Map.tryFind varName varContainer with
-                    | Some(Var.Num x) -> x
-                    | _ ->
-                        printfn "expected Some(Num x) but %s" varName
-                        0
-
-                member __.Set newValue varContainer =
-                    Map.add varName (Var.Num newValue) varContainer
-
-                member this.Update mapping varContainer =
-                    Var.set
-                        this
-                        (mapping (Var.get this varContainer))
-                        varContainer
-
-        type StringVar(varName: string) =
-            interface IVar<string> with
-                member __.GetVarName () =
-                    varName
-
-                member __.Get varContainer =
-                    match Map.tryFind varName varContainer with
-                    | Some(Var.String x) -> x
-                    | _ ->
-                        printfn "expected Some(String x) but %s" varName
-                        ""
-
-                member __.Set newValue varContainer =
-                    Map.add varName (Var.String newValue) varContainer
-
-                member this.Update mapping varContainer =
-                    Var.set
-                        this
-                        (mapping (Var.get this varContainer))
-                        varContainer
-
-        type BoolVar(varName: string) =
-            interface IVar<bool> with
-                member __.GetVarName () =
-                    varName
-
-                member __.Get varContainer =
-                    match Map.tryFind varName varContainer with
-                    | Some(Var.Bool x) -> x
-                    | _ ->
-                        printfn "expected Some(Bool x) but %s" varName
-                        false
-
-                member __.Set newValue varContainer =
-                    Map.add varName (Var.Bool newValue) varContainer
-
-                member this.Update mapping varContainer =
-                    Var.set
-                        this
-                        (mapping (Var.get this varContainer))
-                        varContainer
-
-        type EnumVar<'T when 'T: enum<int>>(varName: string)  =
-            interface IVar<'T> with
-                member __.GetVarName() =
-                    varName
-
-                member __.Get varContainer =
-                    match Map.tryFind varName varContainer with
-                    | Some(Var.Num x) -> (enum x): 'T
-                    | _ ->
-                        printfn "expected Some(Bool x) but %s" varName
-                        enum 0
-
-                member __.Set (newValue) varContainer =
-                    let newValue = int (unbox newValue)
-                    Map.add varName (Var.Num newValue) varContainer
-
-                member this.Update mapping varContainer =
-                    Var.set
-                        this
-                        (mapping (Var.get this varContainer))
-                        varContainer
-
-        [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-        [<RequireQualifiedAccess>]
-        module VarsContainer =
-            let empty: VarsContainer = Map.empty
-
-            let createNum varName = new NumVar(varName)
-
-            let createEnum varName = new EnumVar<'T>(varName)
-
-            let createString varName = new StringVar(varName)
-
-    module Utils =
-        open Types
-
-        let switch (thenBodies: ((VarsContainer -> bool) * Block<'a,'b,'c>) list) (elseBody: Block<'a,'b,'c>) : Block<'a, 'b, 'c> =
-            List.foldBack
-                (fun ((pred: VarsContainer -> bool), (thenBody: Block<'a,'b,'c>)) elseBody ->
-                    [If(pred, thenBody, elseBody)]
-                )
-                thenBodies
-                elseBody
-
-        let (:=) (var: #IVar<_>) newValue =
-            ChangeVars (Var.set var newValue)
-
-        let (==) (var: #IVar<_>) newValue varsContainer =
-            Var.equals var newValue varsContainer
-
 // TODO: refact: move to IfEngine.Fable
 module IFEngine =
     module Fable =
@@ -206,6 +64,10 @@ open GlobalVars
 let scenario =
     [
         label LabelName.MainMenu [
+            noodleCount := 0
+            noodlesEverywhere := NoodlesEverywhere.HasNotStartedYet
+            temporaryGatekeeper := TemporaryGatekeeper.HasNotStartedYet
+
             menu [
                 Html.h1 [
                     prop.style [

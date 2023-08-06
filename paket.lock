@@ -92,7 +92,7 @@ NUGET
       System.Drawing.Common (>= 4.7)
       TextCopy (>= 4.2)
       YamlDotNet (>= 8.1.2)
-    IfEngine (1.1.1)
+    IfEngine (1.2.0)
       FSharp.Core (>= 5.0.1)
       FSharpMyExt (>= 1.13)
     IfEngine.Fable (1.2.0)

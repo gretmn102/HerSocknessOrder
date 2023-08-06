@@ -1,7 +1,7 @@
 module Index
 open Elmish
 open FsharpMyExtension.ResultExt
-open Scenario.IfEngine.Types
+open IfEngine.Types
 open IfEngine.Engine
 open IfEngine.Fable
 open IfEngine.Fable.WebEngine
