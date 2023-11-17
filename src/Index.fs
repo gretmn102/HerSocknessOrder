@@ -1,14 +1,14 @@
 module Index
 open Elmish
 open FsharpMyExtension.ResultExt
-open IfEngine.Types
 open IfEngine.Engine
-open IfEngine.Fable
-open IfEngine.Fable.WebEngine
+open IfEngine.SyntaxTree
+open IfEngine.SyntaxTree.CommonContent
+open IfEngine.Fable.SavingEngine
 
 type State =
     {
-        IfEngineState: WebEngine<Scenario.LabelName, Scenario.CustomStatement, Scenario.CustomStatementArg, Scenario.CustomStatementOutput>
+        IfEngineState: Engine<Content, Scenario.LabelName, Scenario.CustomStatement, Scenario.CustomStatementArg, Scenario.CustomStatementOutput>
     }
 
 type Msg =
@@ -18,10 +18,12 @@ let init () =
     let st =
         {
             IfEngineState =
-                WebEngine.create
+                IfEngine.State.init
+                    Scenario.beginLoc
+                    VarsContainer.empty
+                |> Engine.create
                     CustomStatementHandler.empty
                     Scenario.scenario
-                    (IfEngine.State.init Scenario.beginLoc VarsContainer.empty)
                 |> Result.get
         }
     st, Cmd.none
@@ -29,7 +31,7 @@ let init () =
 let update (msg: Msg) (state: State) =
     let updateGame msg =
         let gameState =
-            WebEngine.update msg state.IfEngineState
+            Engine.update msg state.IfEngineState
             |> Result.get
 
         { state with
@@ -41,7 +43,7 @@ let update (msg: Msg) (state: State) =
         updateGame msg, Cmd.none
 
 let view (state: State) (dispatch: Msg -> unit) =
-    Index.view
+    IfEngine.Fable.Index.view
         (fun (customStatement: Scenario.CustomStatement) ->
             failwithf "customStatement not implemented"
         )
