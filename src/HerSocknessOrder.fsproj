@@ -4,6 +4,10 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
+  <Target Name="SpicNSpan" AfterTargets="Clean">
+    <RemoveDir Directories="$(BaseOutputPath)" />
+    <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
+  </Target>
   <ItemGroup>
     <Compile Include="Scenario.fs" />
     <Compile Include="Index.fs" />

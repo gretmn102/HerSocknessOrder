@@ -1,16 +1,18 @@
 {
   "private": true,
   "scripts": {
+    "postinstall": "npm run dotnet:install",
     "dotnet:install": "dotnet tool restore && dotnet paket install",
     "dotnet:clean": "dotnet clean",
     "dotnet:deploy": "npm run dotnet:install && npm run dotnet:clean && dotnet build",
-    "postinstall": "npm run dotnet:install",
+    "fable:clean": "dotnet fable clean -o dist --yes",
     "fable:build": "dotnet fable src/HerSocknessOrder.fsproj -o dist",
+    "fable:deploy": "npm run dotnet:clean && npm run fable:clean && npm run fable:build",
     "fable:watch": "npm run fable:build -- --watch",
     "vite:watch": "vite",
     "vite:build": "vite build",
     "dev": "concurrently \"npm:*:watch\"",
-    "deploy": "npm run fable:build && npm run vite:build"
+    "deploy": "npm run fable:deploy && npm run vite:build"
   },
   "devDependencies": {
     "concurrently": "^8.0.1",
